@@ -1,24 +1,46 @@
+import os
+import pickle
 from googleapiclient.discovery import build
-from google.oauth2 import service_account
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
 
 # --- AUTHENTICATION ---
-SCOPES = ["https://www.googleapis.com/auth/documents", "https://www.googleapis.com/auth/drive"]
-SERVICE_ACCOUNT_FILE = "../projecttelkom-58f002bf8fa0.json"
+SCOPES = [
+    "https://www.googleapis.com/auth/documents",
+    "https://www.googleapis.com/auth/drive"
+]
 
-creds = service_account.Credentials.from_service_account_file(
-    SERVICE_ACCOUNT_FILE, scopes=SCOPES
-)
+def get_credentials():
+    creds = None
+    if os.path.exists("token_docs.pkl"):
+        with open("token_docs.pkl", "rb") as token:
+            creds = pickle.load(token)
 
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            # ganti path ini ke file OAuth Client ID JSON yang kamu download
+            flow = InstalledAppFlow.from_client_secrets_file(
+                "../client_secret_425132504468-3v7vfinniqrlrevdb6sl3hivd8ulprd7.apps.googleusercontent.com.json",
+                SCOPES
+            )
+            creds = flow.run_local_server(port=0)
+
+        # simpan supaya tidak login ulang
+        with open("token_docs.pkl", "wb") as token:
+            pickle.dump(creds, token)
+
+    return creds
+
+
+# --- INIT SERVICES ---
+creds = get_credentials()
 docs_service = build("docs", "v1", credentials=creds)
 drive_service = build("drive", "v3", credentials=creds)
 
 
 # --- CREATE ---
-# def create_doc(title="Dokumen Baru"):
-#     body = {"title": title}
-#     doc = docs_service.documents().create(body=body).execute()
-#     print("#create =>", f"Created document with ID: {doc['documentId']}")
-#     return doc["documentId"]
 def create_doc(title="Dokumen Baru", folder_id=None):
     file_metadata = {
         "name": title,
@@ -33,7 +55,6 @@ def create_doc(title="Dokumen Baru", folder_id=None):
     return file["id"]
 
 
-
 # --- READ ---
 def read_doc(document_id):
     doc = docs_service.documents().get(documentId=document_id).execute()
@@ -44,8 +65,8 @@ def read_doc(document_id):
             for run in element["paragraph"]["elements"]:
                 if "textRun" in run:
                     text += run["textRun"]["content"]
-    print("#read =>", text)
-    return text
+    print("#read =>", text.strip())
+    return text.strip()
 
 
 # --- UPDATE (append text) ---
@@ -58,7 +79,9 @@ def append_text(document_id, text):
             }
         }
     ]
-    docs_service.documents().batchUpdate(documentId=document_id, body={"requests": requests}).execute()
+    docs_service.documents().batchUpdate(
+        documentId=document_id, body={"requests": requests}
+    ).execute()
     print("#update => appended text:", text)
 
 
@@ -72,7 +95,9 @@ def replace_text(document_id, old_text, new_text):
             }
         }
     ]
-    docs_service.documents().batchUpdate(documentId=document_id, body={"requests": requests}).execute()
+    docs_service.documents().batchUpdate(
+        documentId=document_id, body={"requests": requests}
+    ).execute()
     print(f"#update => replaced '{old_text}' with '{new_text}'")
 
 
@@ -85,17 +110,17 @@ def delete_doc(document_id):
 # --- MAIN DEMO ---
 if __name__ == "__main__":
     # CREATE
-    doc_id = create_doc("Test CRUD Docs", folder_id="1-jaWHdEjXhxYsgIgaCcPtgaBMEfd_MO-")
+    doc_id = create_doc("Test CRUD Docs OAuth", folder_id="1-jaWHdEjXhxYsgIgaCcPtgaBMEfd_MO-")
 
-    # # UPDATE (append)
-    # append_text(doc_id, "Halo, ini teks pertama.")
-    # append_text(doc_id, "Ini teks kedua.")
+    # UPDATE (append)
+    append_text(doc_id, "Halo, ini teks pertama.")
+    append_text(doc_id, "Ini teks kedua.")
 
-    # # READ
-    # read_doc(doc_id)
+    # READ
+    read_doc(doc_id)
 
-    # # UPDATE (replace)
-    # replace_text(doc_id, "Halo", "Hello")
+    # UPDATE (replace)
+    replace_text(doc_id, "Halo", "Hello")
 
     # DELETE
     # delete_doc(doc_id)   # hati-hati, hapus permanen
