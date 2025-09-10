@@ -1,0 +1,23 @@
+# --- Google API Credentials ---
+projecttelkom-58f002bf8fa0.json
+client_secret_425132504468-3v7vfinniqrlrevdb6sl3hivd8ulprd7.apps.googleusercontent.com.json
+token.pkl
+
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+
+# --- Virtualenv ---
+.env
+.venv
+env/
+venv/
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+.DS_Store
